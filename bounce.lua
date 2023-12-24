@@ -31,8 +31,8 @@ tones = {
 
 -- menu params
 index = 1
-menu_labels = {"cut", "rel", "pw", "gain", "fdbk", "tape spd"}
-menu_items = {"cutoff", "release", "pw", "gain", "delay_feedback", "delay_rate"}
+menu_labels = {"tape spd", "cut", "rel", "pw", "gain", "fdbk", }
+menu_items = {"delay_rate", "cutoff", "release", "pw", "gain", "delay_feedback", }
 
 params:add_control("cutoff","cutoff",controlspec.new(50,5000,'exp',0,555,'hz'))
 params:set_action("cutoff", function(x) engine.cutoff(x) end)
@@ -129,12 +129,13 @@ function redraw()
   local x = math.floor(ball.x)
   local y = math.floor(ball.y)
   screen.move(x, y)
-  screen.circle(x, y, 4)
+  screen.circle(x, y, 3)
   screen.fill()
   
   -- status
   screen.move(0, 60)
-  screen.text(string.format("x:% 4d y:% 4d", x, y)) 
+  screen.level(10)
+  screen.text(string.format("% 3d,% 3d", x, y)) 
 
   -- parameter that you're editing
   screen.move(125, 60)
@@ -187,6 +188,7 @@ function launch_ball(x, y)
   ball.y = y or math.random(0, 64)
   ball.vx = math.random(-vmax, vmax)
   ball.vy = math.random(-vmax, vmax)
+  
 end 
 
 function midi_to_hz(note)
