@@ -3,21 +3,36 @@
 -- making tones when it hits walls
 --
 
+delay = include('lib/delay')
+delay.init()
+
+
 ball = {
   x=0, 
   y=0,
   vx=0,
   vy=0,
 }
-
   
-box = {xmin=0, ymin=0, xmax=128, ymax=64}
-tones = {70, 90, 80, 75}
 vmax = 5
+box = {xmin=0, ymin=0, xmax=128, ymax=64}
+reflections = {}
+-- a reflection consists of a location (x,y) and an index. Increase the radius of the reflection each time to make a little splash that radiates outward and is popped after 10 iterations.
+
+
+top_midi = 95
+low_midi = 70
+tones = {
+  math.random(low_midi, top_midi), 
+  math.random(low_midi, top_midi),
+  math.random(low_midi, top_midi),
+  math.random(low_midi, top_midi),
+}  -- pick 4 random tones
 
 -- menu params
 index = 1
-menu_items = {"cutoff", "release", "pw", "gain"}
+menu_labels = {"cut", "rel", "pw", "gain", "fdbk", "tape spd"}
+menu_items = {"cutoff", "release", "pw", "gain", "delay_feedback", "delay_rate"}
 
 params:add_control("cutoff","cutoff",controlspec.new(50,5000,'exp',0,555,'hz'))
 params:set_action("cutoff", function(x) engine.cutoff(x) end)
@@ -50,53 +65,92 @@ function init()
 end
 
 function update()
-  -- keep from going outside of the bounds
-  next_pos = {
-    x=ball.x + ball.vx,
-    y=ball.y + ball.vy
+  local next_pos = {
+    x=ball.x + ball.vx*params:get("delay_rate"),
+    y=ball.y + ball.vy*params:get("delay_rate")
   }
+  
+  -- calculate bounces
   if (next_pos.x < box.xmin) then
     ball.vx = -ball.vx
-    engine.hz(midi_to_hz(tones[1]))
+    play_tone(1)
+    add_reflection(next_pos.x, next_pos.y)
   else if(next_pos.x > box.xmax) then
     ball.vx = -ball.vx
-    engine.hz(midi_to_hz(tones[2]))
+    play_tone(2)
+    add_reflection(next_pos.x, next_pos.y)
   end
   end
   if (next_pos.y < box.ymin) then
     ball.vy = -ball.vy
-    engine.hz(tones[3])
+    play_tone(3)
+    add_reflection(next_pos.x, next_pos.y)
   else if (next_pos.y > box.ymax) then
     ball.vy = -ball.vy
-    engine.hz(tones[4])
+    play_tone(4)
+    add_reflection(next_pos.x, next_pos.y)
   end
   end
   
   -- update position
   ball.x = next_pos.x
   ball.y = next_pos.y
+  
+  -- update reflections
+  for i=1, #reflections do
+    -- increase the size of the reflection each update
+    reflections[i].radius = reflections[i].radius + 2*math.exp(-0.01*reflections[i].radius) 
+  end
+  
+  -- remove reflection once they're so big they can't be seen.
+  local n = #reflections
+  for i=1, n do
+    if reflections[i] ~= nil then
+      if reflections[i].radius > 128 then
+        table.remove(reflections, i)
+      end
+    end
+  end
+
   redraw()
 end
+
+-- i=1, j=1
+-- [r1, r2, nil, r3]
+-- [r1, r2, r3] 
+
 
 
 function redraw()
   screen.clear()
+  screen.level(15)
   
   -- ball
-  screen.move(ball.x, ball.y)
-  screen.circle(ball.x, ball.y, 4)
+  local x = math.floor(ball.x)
+  local y = math.floor(ball.y)
+  screen.move(x, y)
+  screen.circle(x, y, 4)
   screen.fill()
   
   -- status
   screen.move(0, 60)
-  screen.text(string.format("x: %3d y: %3d", ball.x, ball.y)) 
+  screen.text(string.format("x:% 4d y:% 4d", x, y)) 
 
   -- parameter that you're editing
   screen.move(125, 60)
-  screen.text_right(string.format("%s: %5.2f", menu_items[index], params:get(menu_items[index])))
+  screen.text_right(string.format("%s: %5.2f", menu_labels[index], params:get(menu_items[index])))
 
+  -- reflections
+  for i=1,#reflections do
+    local r = math.floor(reflections[i].radius)
+    screen.circle(reflections[i].x, reflections[i].y, r)
+    screen.level(math.floor((128-r)/128*10))
+    screen.stroke()
+    
+  end
+  
+  
   screen.update()
-
 end
 
 function key(n, z)
@@ -118,6 +172,15 @@ function enc(n, d)
   
   
 end  
+
+function play_tone(index)
+  engine.hz(midi_to_hz(tones[index])*params:get("delay_rate"))
+end
+
+function add_reflection(x, y)
+  table.insert(reflections, {x=x, y=y, radius=0.0})
+end
+
 
 function launch_ball(x, y)
   ball.x = x or math.random(0, 128)
