@@ -137,8 +137,7 @@ function redraw()
   -- status
   screen.move(0, 60)
   screen.level(10)
-  -- screen.text(string.format("% 3d,% 3d", x, y)) 
-  screen.text(string.format("%5.3f", util.time()- time_of_last_menu_update))
+  screen.text(string.format("% 3d,% 3d", x, y)) 
   
   -- parameter that you're editing, with menu timeout
   if util.time() - time_of_last_menu_update <= menu_label_timeout then
